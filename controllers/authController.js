@@ -52,7 +52,7 @@ exports.login = catchAsync(async (req, res, next) => {
   }
   //candidate password, password in db
   if (!user || !(await correctPassword(password, user.password))) {
-    return res.status(403).json({ message: "Invalid email or password" });
+    return next(new appError("Invalid email or password", 401));
   }
   createSendToken(user, 200, res);
 });

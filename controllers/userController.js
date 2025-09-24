@@ -2,23 +2,12 @@ const catchAsync = require("./../utils/catchAsync");
 // const APIFeatures = require("../utils/apiFeatures");
 const appError = require("../utils/appError");
 
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const prisma = require("../prisma/hooks/userHooks");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
   //   const features = new APIFeatures(prisma.users, req.query);
 
-  const users = await prisma.users.findMany({
-    include: {
-      tests: {
-        include: {
-          photo: true,
-        },
-      },
-      credits: true,
-    },
-  });
+  const users = await prisma.users.findMany({});
 
   if (!users) {
     return next(new appError("There are no usesrs, yet!", 404));
