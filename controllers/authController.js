@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-
+const { promisify } = require("util");
 const prisma = require("../prisma/hooks/userHooks");
 const catchAsync = require("./../utils/catchAsync");
 const appError = require("./../utils/appError");
@@ -12,7 +12,7 @@ const signToken = (email) => {
 };
 
 const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.id);
+  const token = signToken(user.email);
   user.password = undefined;
 
   res.status(statusCode).json({
@@ -69,11 +69,14 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new appError("Log in!", 401));
   }
 
-  const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
+  const decoded = await promisify(jwt.verify)(
+    token,
+    process.env.JWT_SECRET_KEY
+  );
   console.log(decoded);
 
   const user = await prisma.users.findUnique({
-    where: { id: decoded.id },
+    where: { email: decoded.email },
   });
 
   if (!user) {

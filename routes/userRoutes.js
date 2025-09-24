@@ -7,11 +7,19 @@ router.post("/signup", authController.signup);
 router.post("/login", authController.login);
 
 router
-  .route("/users")
+  .route("/")
   .get(
     authController.protect,
-    authController.restrictTo("doctor, superadmin"),
+    authController.restrictTo("doctor", "superadmin"),
     userController.getAllUsers
   );
+
+router.get("/profile", authController.protect, userController.getProfile);
+router.get(
+  "/:id",
+  authController.protect,
+  authController.restrictTo("doctor", "superadmin"),
+  userController.getUser
+);
 
 module.exports = router;
