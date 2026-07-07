@@ -27,7 +27,6 @@ model User {
   firstName String
   lastName  String
   email     String   @unique
-  refreshToken  String
   role      Role     @default(patient)
   createdAt DateTime @default(now())
 
