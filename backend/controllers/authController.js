@@ -31,13 +31,15 @@ exports.createUser = catchAsync(async (req, res, next) => {
     return next();
   }
 
+  console.log(payload);
+
   const user = await prisma.user.create({
     //create the new user
     data: {
       email: payload.email,
       sub: payload.sub,
       firstName: payload.given_name,
-      lastName: payload.family_name,
+      lastName: payload.family_name || "Default",
     },
   });
   if (!user) {
