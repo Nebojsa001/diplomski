@@ -1,60 +1,55 @@
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
-const prisma = require("../prisma/hooks/userHooks");
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 const catchAsync = require("./../utils/catchAsync");
 const appError = require("./../utils/appError");
-const { correctPassword } = require("../utils/authUtils");
+const { verifyGoogleToken } = require("../utils/authUtils");
+const { log } = require("console");
 
-const signToken = (email) => {
-  return jwt.sign({ email }, process.env.JWT_SECRET_KEY, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+exports.createUser = catchAsync(async (req, res, next) => {
+  let idToken = req.body.credential;
+  let payload;
+  let authProvider = "GOOGLE";
+
+  payload = await verifyGoogleToken(idToken);
+  console.log(payload);
+
+  const userExist = await prisma.user.findFirst({
+    where: {
+      sub: payload.sub,
+    },
   });
-};
 
-const createSendToken = (user, statusCode, res) => {
-  const token = signToken(user.email);
-  user.password = undefined;
+  if (userExist) {
+    res.status(200).json({
+      status: "success",
+      message: "User logged in successfully!",
+      user: userExist,
+      idToken,
+    });
+    return next();
+  }
 
-  res.status(statusCode).json({
+  const user = await prisma.user.create({
+    //create the new user
+    data: {
+      email: payload.email,
+      sub: payload.sub,
+      firstName: payload.given_name,
+      lastName: payload.family_name,
+    },
+  });
+  if (!user) {
+    return next(new appError("Registration faild!", 400));
+  }
+
+  res.status(200).json({
     status: "success",
-    token,
-    data: {
-      user,
-    },
+    message: "User created successfully!",
+    user,
+    idToken,
   });
-};
-
-exports.signup = catchAsync(async (req, res, next) => {
-  let newUser;
-
-  newUser = await prisma.users.create({
-    data: {
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      email: req.body.email,
-      password: req.body.password,
-    },
-  });
-
-  createSendToken(newUser, 201, res);
-});
-
-exports.login = catchAsync(async (req, res, next) => {
-  const { email, password } = req.body;
-
-  const user = await prisma.users.findUnique({
-    where: { email: email },
-  });
-  if (!email || !password) {
-    return next(
-      new appError("Ensure that an email and password are provided!", 400)
-    );
-  }
-  //candidate password, password in db
-  if (!user || !(await correctPassword(password, user.password))) {
-    return next(new appError("Invalid email or password", 401));
-  }
-  createSendToken(user, 200, res);
 });
 
 exports.protect = catchAsync(async (req, res, next) => {
@@ -69,15 +64,18 @@ exports.protect = catchAsync(async (req, res, next) => {
     return next(new appError("Log in!", 401));
   }
 
-  const decoded = await promisify(jwt.verify)(
-    token,
-    process.env.JWT_SECRET_KEY
-  );
-  console.log(decoded);
+  // const decoded = await promisify(jwt.verify)(
+  //   token,
+  //   process.env.JWT_SECRET_KEY,
+  // );
+  // console.log(decoded);
+  const payload = await verifyGoogleToken(token);
+  console.log(payload);
 
-  const user = await prisma.users.findUnique({
-    where: { email: decoded.email },
+  const user = await prisma.user.findUnique({
+    where: { sub: payload.sub },
   });
+  console.log(user);
 
   if (!user) {
     return next(new appError("User not found!", 404));

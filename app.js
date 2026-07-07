@@ -3,14 +3,15 @@ const app = express();
 const globalErrorHandler = require("./controllers/errorController");
 const appError = require("./utils/appError");
 const userRouter = require("./routes/userRoutes");
+const appointmentRouter = require("./routes/appointmentRoutes");
+const cors = require("cors");
 
 app.use(express.json());
 
-app.use("/api/v1/users", userRouter);
+app.use(cors());
 
-// app.all("*", (req, res, next) => {
-//   next(new appError(`Can't find ${req.originalUrl} on this server!`, 404));
-// });
+app.use("/api/v1/users", userRouter);
+app.use("/api/v1/appointments", appointmentRouter);
 
 app.use(globalErrorHandler);
 

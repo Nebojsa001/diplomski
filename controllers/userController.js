@@ -27,28 +27,28 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getProfile = catchAsync(async (req, res, next) => {
-  const user = await prisma.users.findUnique({
-    where: {
-      id: req.user.id,
-    },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      role: true,
-      created_at: true,
-    },
-  });
-  if (!user) {
-    return next(new appError("User not found!", 404));
-  }
-  res.status(200).json({
-    status: "success",
-    data: user,
-  });
-});
+// 'exports.getProfile = catchAsync(async (req, res, next) => {
+//   const user = await prisma.users.findUnique({
+//     where: {
+//       id: req.user.id,
+//     },
+//     select: {
+//       id: true,
+//       firstName: true,
+//       lastName: true,
+//       email: true,
+//       role: true,
+//       created_at: true,
+//     },
+//   });
+//   if (!user) {
+//     return next(new appError("User not found!", 404));
+//   }
+//   res.status(200).json({
+//     status: "success",
+//     data: user,
+//   });
+// });'
 
 exports.getUser = catchAsync(async (req, res, next) => {
   const user = await prisma.users.findUnique({
