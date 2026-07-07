@@ -190,7 +190,7 @@ export default function UserProfile() {
     setFormLoading(true);
 
     try {
-      const isoDate = `${formDate}T${formTime}:00.000Z`;
+      const isoDate = `${formDate}T${formTime}:00`;
 
       await createAppointment({
         title: formTitle,
