@@ -3,26 +3,49 @@ import { api } from "./api";
 
 const USER_KEY = "app_user";
 
-/**
- * Flow (verzija bez posebnog backend tokena):
- * 1. Frontend dobije Google ID token (credential) od @react-oauth/google
- * 2. Saljemo ga backend-u SAMO da ga verifikuje i upise/pronade usera u bazi
- *    (backend provjerava potpis kod Googla preko google-auth-library)
- * 3. Backend vraca SAMO { user }, NE vraca svoj token
- * 4. Frontend cuva sam credential (idToken) kao jedini token i njega salje
- *    kao Authorization header na svaki sledeci zahtjev
- *
- * VAZNO: idToken obicno vazi ~1h (Google ga tako izdaje). Nakon isteka,
- * backend ce odbijati zahtjeve (401) i korisnik se mora ponovo ulogovati -
- * nema "refresh" mehanizma u ovoj verziji, to je svjesni tradeoff za MVP.
- */
-export async function loginWithGoogle(credential) {
-  // Backend endpoint koji treba da postoji: POST /auth/google { credential }
-  // On SAMO verifikuje token i vraca { user: { id, name, email, picture } }
-  const data = await api.post("/users/login", { credential }, { auth: false });
+export async function register({
+  firstName,
+  lastName,
+  email,
+  password,
+  passwordConfirm,
+}) {
+  const data = await api.post(
+    "/users/register",
+    { firstName, lastName, email, password, passwordConfirm },
+    { auth: false },
+  );
 
-  // idToken je ovdje nas jedini "session token"
-  api.setToken(credential);
+  api.setToken(data.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+
+  return data.user;
+}
+
+export async function login({ email, password }) {
+  const data = await api.post(
+    "/users/login",
+    { email, password },
+    { auth: false },
+  );
+
+  api.setToken(data.token);
+  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+
+  return data.user;
+}
+
+export async function loginWithGoogle(credential) {
+  // Backend endpoint: POST /users/google-login { credential }
+  // Verifikuje Google ID token, pronalazi/kreira korisnika preko emaila
+  // i vraca NAS app token: { token, user }
+  const data = await api.post(
+    "/users/google-login",
+    { credential },
+    { auth: false },
+  );
+
+  api.setToken(data.token);
   localStorage.setItem(USER_KEY, JSON.stringify(data.user));
 
   return data.user;
@@ -42,10 +65,10 @@ export function isAuthenticated() {
   const token = api.getToken();
   if (!token) return false;
 
-  // idToken nosi "exp" (unix timestamp) - mozemo lokalno provjeriti da li je
-  // istekao da ne pokazujemo "ulogovan" state uzivo dok backend ne odbije zahtjev.
+  // Nas JWT nosi "exp" (unix timestamp) - lokalno provjeravamo da li je istekao
+  // da ne pokazujemo "ulogovan" state uzivo dok backend ne odbije zahtjev.
   // Ovo je samo UX provjera, ne zamjenjuje verifikaciju na backendu.
-  const decoded = decodeGoogleCredential(token);
+  const decoded = decodeToken(token);
   if (!decoded?.exp) return false;
 
   const isExpired = decoded.exp * 1000 < Date.now();
@@ -57,9 +80,9 @@ export function isAuthenticated() {
   return true;
 }
 
-export function decodeGoogleCredential(credential) {
+export function decodeToken(token) {
   try {
-    return jwtDecode(credential);
+    return jwtDecode(token);
   } catch {
     return null;
   }

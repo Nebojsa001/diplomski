@@ -8,21 +8,34 @@ const prisma = new PrismaClient();
 
 const client = new OAuth2Client();
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.WEB_GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.SITE_URL,
-);
+const oauth2Client = new google.auth.OAuth2(process.env.WEB_GOOGLE_CLIENT_ID);
+
+// Jedinstveni "app" JWT koji izdajemo NAKON uspješnog logina, bilo preko
+// email/lozinke ili preko Google-a. Payload sadrži userId i email - "sub"
+// (Google identifikator) se nigdje vise ne koristi niti sprema.
+const signToken = function (user) {
+  return jwt.sign(
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    },
+    process.env.JWT_SECRET_KEY,
+    {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1d",
+    },
+  );
+};
+
+const verifyToken = function (token) {
+  return jwt.verify(token, process.env.JWT_SECRET_KEY);
+};
 
 const verifyGoogleToken = async function (idToken) {
   try {
     const ticket = await client.verifyIdToken({
       idToken,
-      audience: [
-        process.env.ANDROID_GOOGLE_CLIENT_ID,
-        process.env.TEST_GOOGLE_CLIENT_ID,
-        process.env.WEB_GOOGLE_CLIENT_ID,
-      ],
+      audience: [process.env.WEB_GOOGLE_CLIENT_ID],
     });
     const payload = ticket.getPayload();
     return payload; // holds email,name....}
@@ -63,4 +76,6 @@ module.exports = {
   verifyGoogleToken,
   getRefreshAndIdToken,
   refreshIdToken,
+  signToken,
+  verifyToken,
 };

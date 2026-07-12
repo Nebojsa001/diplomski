@@ -3,6 +3,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Navbar from "@/components/Navbar";
 
 import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import UserProfile from "@/pages/UserProfile";
 import NotFound from "@/pages/NotFound";
@@ -23,6 +24,7 @@ export default function AppRoutes() {
     <Routes>
       {/* PUBLIC */}
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
 
       {/* AUTH REQUIRED (ALL LOGGED USERS) */}
       <Route element={<ProtectedRoute />}>

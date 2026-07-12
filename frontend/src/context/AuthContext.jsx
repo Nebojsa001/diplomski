@@ -13,12 +13,31 @@ export function AuthProvider({ children }) {
       setUser(authService.getStoredUser())
     }
     setIsLoading(false)
+
+    // Ako api.js otkrije istekao/nevazeci token (401), odmah azuriramo state
+    function handleExpired() {
+      setUser(null)
+    }
+    window.addEventListener('auth:expired', handleExpired)
+    return () => window.removeEventListener('auth:expired', handleExpired)
   }, [])
 
   async function loginWithGoogle(credential) {
     const loggedInUser = await authService.loginWithGoogle(credential)
     setUser(loggedInUser)
     return loggedInUser
+  }
+
+  async function login(email, password) {
+    const loggedInUser = await authService.login({ email, password })
+    setUser(loggedInUser)
+    return loggedInUser
+  }
+
+  async function register(payload) {
+    const registeredUser = await authService.register(payload)
+    setUser(registeredUser)
+    return registeredUser
   }
 
   function logout() {
@@ -31,6 +50,8 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user),
     isLoading,
     loginWithGoogle,
+    login,
+    register,
     logout,
   }
 

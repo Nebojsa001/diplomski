@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 prisma.$use(async (params, next) => {
   if (
-    params.model === "Users" &&
+    params.model === "User" &&
     (params.action === "create" || params.action === "update")
   ) {
     const data = params.args.data;

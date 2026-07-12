@@ -23,10 +23,10 @@ enum AppointmentStatus {
 
 model User {
   id        Int      @id @default(autoincrement())
-  sub       String   @unique
   firstName String
   lastName  String
   email     String   @unique
+  password  String? // null za korisnike koji su se prijavili isključivo preko Google OAuth-a
   role      Role     @default(patient)
   createdAt DateTime @default(now())
 
