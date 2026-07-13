@@ -30,8 +30,24 @@ export default function Sidebar({ isOpen, onClose }) {
         className={`app-sidebar ${isOpen ? "app-sidebar--open" : ""}`}
         aria-label="Glavna navigacija"
       >
-        <div className="app-sidebar__brand">
+        {/* <div className="app-sidebar__brand">
           <span className="app-sidebar__brand-badge">UKC</span>
+          <span className="app-sidebar__brand-text">Republike Srpske</span>
+        </div> */}
+        <div
+          className="app-sidebar__brand"
+          style={{ display: "flex", alignItems: "center", gap: "10px" }}
+        >
+          <img
+            src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSu7Wk-k7W0CO0wKYalXes3qy7grU651GcJ9R7XQ0d8EQ&s=10"
+            alt="UKC RS Logo"
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "8px",
+              objectFit: "cover",
+            }}
+          />
           <span className="app-sidebar__brand-text">Republike Srpske</span>
         </div>
 
