@@ -1,18 +1,11 @@
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import NavIcon from "@/components/layout/NavIcon";
 
-export default function Navbar() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    logout();
-    navigate("/login");
-  }
+export default function Navbar({ onMenuToggle, isMenuOpen }) {
+  const { user } = useAuth();
 
   return (
     <header className="navbar">
-      <span className="navbar__brand">Diplomski rad</span>
       {user && (
         <div className="navbar__user">
           {user.picture && (
@@ -22,12 +15,19 @@ export default function Navbar() {
               className="navbar__avatar"
             />
           )}
-          <span>{user.name}</span>
-          <button onClick={handleLogout} className="navbar__logout">
-            Odjava
-          </button>
+          <span>{user.name || `${user.firstName} ${user.lastName}`}</span>
         </div>
       )}
+
+      <button
+        type="button"
+        className="navbar__menu-btn"
+        onClick={onMenuToggle}
+        aria-label={isMenuOpen ? "Zatvori meni" : "Otvori meni"}
+        aria-expanded={isMenuOpen}
+      >
+        <NavIcon name={isMenuOpen ? "close" : "menu"} />
+      </button>
     </header>
   );
 }
