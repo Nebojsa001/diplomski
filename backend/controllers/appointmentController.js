@@ -68,11 +68,10 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
 // default: samo Waiting
 //
 exports.getAllAppointments = catchAsync(async (req, res, next) => {
-  const { status, date } = req.query;
+  const { status, date, from, to, userId } = req.query;
 
   let dateFilter = {};
-
-  // 🔥 FILTER BY DATE (whole day)
+  // filtriranje po danu
   if (date) {
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
@@ -86,12 +85,31 @@ exports.getAllAppointments = catchAsync(async (req, res, next) => {
         lte: end,
       },
     };
+  } else if (from || to) {
+    const range = {};
+
+    if (from) {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      range.gte = start;
+    }
+
+    if (to) {
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      range.lte = end;
+    }
+
+    dateFilter = { date: range };
   }
+
+  const userFilter = userId ? { userId: Number(userId) } : {};
 
   const appointments = await prisma.appointment.findMany({
     where: {
       status: status || "Waiting",
       ...dateFilter,
+      ...userFilter,
     },
     include: {
       user: {
@@ -229,7 +247,7 @@ exports.cancelAppointment = catchAsync(async (req, res, next) => {
 
 exports.getMyAppointments = catchAsync(async (req, res, next) => {
   const userId = req.user.id;
-  const { date } = req.query;
+  const { date, from, to, status } = req.query;
 
   let where = {
     userId,
@@ -247,6 +265,28 @@ exports.getMyAppointments = catchAsync(async (req, res, next) => {
       gte: start,
       lte: end,
     };
+  } else if (from || to) {
+    // Filter po opsegu datuma (koristi se npr. za "Izvještaji")
+    const range = {};
+
+    if (from) {
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      range.gte = start;
+    }
+
+    if (to) {
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      range.lte = end;
+    }
+
+    where.date = range;
+  }
+
+  // Filter po statusu (npr. samo "Completed" za istoriju pregleda)
+  if (status) {
+    where.status = status;
   }
 
   const appointments = await prisma.appointment.findMany({
@@ -274,7 +314,7 @@ exports.getMyAppointments = catchAsync(async (req, res, next) => {
   });
 });
 //
-// 🔹 DELETE APPOINTMENT
+//  DELETE APPOINTMENT
 //
 exports.deleteAppointment = catchAsync(async (req, res, next) => {
   const appointment = await prisma.appointment.findUnique({
