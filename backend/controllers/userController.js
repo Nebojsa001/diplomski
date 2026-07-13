@@ -5,14 +5,20 @@ const appError = require("../utils/appError");
 const prisma = require("../prisma/hooks/userHooks");
 
 exports.getAllUsers = catchAsync(async (req, res, next) => {
-  const users = await prisma.users.findMany({
+  const { role } = req.query;
+
+  const users = await prisma.user.findMany({
+    where: role ? { role } : undefined,
     select: {
       id: true,
       firstName: true,
       lastName: true,
       email: true,
       role: true,
-      created_at: true,
+      createdAt: true,
+    },
+    orderBy: {
+      firstName: "asc",
     },
   });
 
@@ -24,6 +30,29 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
     status: "success",
     result: users.length,
     data: users,
+  });
+});
+
+//
+// Lista doktora (koristi se za prikaz imena doktora u izvještajima)
+//
+exports.getDoctors = catchAsync(async (req, res, next) => {
+  const doctors = await prisma.user.findMany({
+    where: { role: "doctor" },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+    },
+    orderBy: {
+      firstName: "asc",
+    },
+  });
+
+  res.status(200).json({
+    status: "success",
+    result: doctors.length,
+    data: doctors,
   });
 });
 
@@ -51,7 +80,7 @@ exports.getAllUsers = catchAsync(async (req, res, next) => {
 // });'
 
 exports.getUser = catchAsync(async (req, res, next) => {
-  const user = await prisma.users.findUnique({
+  const user = await prisma.user.findUnique({
     where: {
       id: req.params.id * 1, //convert string to number - id is number not string
     },
@@ -61,7 +90,7 @@ exports.getUser = catchAsync(async (req, res, next) => {
       lastName: true,
       email: true,
       role: true,
-      created_at: true,
+      createdAt: true,
     },
   });
   if (!user) {
