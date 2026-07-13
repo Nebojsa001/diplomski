@@ -4,15 +4,12 @@ const { promisify } = require("util");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../prisma/hooks/userHooks");
 
 const client = new OAuth2Client();
 
 const oauth2Client = new google.auth.OAuth2(process.env.WEB_GOOGLE_CLIENT_ID);
 
-// Jedinstveni "app" JWT koji izdajemo NAKON uspješnog logina, bilo preko
-// email/lozinke ili preko Google-a. Payload sadrži userId i email - "sub"
-// (Google identifikator) se nigdje vise ne koristi niti sprema.
 const signToken = function (user) {
   return jwt.sign(
     {
