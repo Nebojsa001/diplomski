@@ -48,7 +48,7 @@ export default function Sidebar({ isOpen, onClose }) {
               objectFit: "cover",
             }}
           />
-          <span className="app-sidebar__brand-text">Republike Srpske</span>
+          <span className="app-sidebar__brand-text">UKC Republike Srpske</span>
         </div>
 
         {user && (
