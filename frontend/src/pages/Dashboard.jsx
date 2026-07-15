@@ -1,10 +1,25 @@
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   getAppointments,
-  acceptAppointment,
+  startAppointment,
   cancelAppointment,
 } from "@/services/appointments.service";
+import ExamForm from "@/components/doctor/ExamForm";
+
+const STATUS_LABELS = {
+  Waiting: "Na čekanju",
+  InProgress: "U toku",
+  Completed: "Završen",
+  Cancelled: "Otkazan",
+};
+
+const STATUS_BADGE_STYLES = {
+  Waiting: { background: "#fef3c7", color: "#92400e" },
+  InProgress: { background: "#dbeafe", color: "#1d4ed8" },
+  Completed: { background: "#dcfce7", color: "#15803d" },
+  Cancelled: { background: "#fee2e2", color: "#b91c1c" },
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -22,6 +37,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [expandedId, setExpandedId] = useState(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -30,8 +46,15 @@ export default function Dashboard() {
       try {
         setIsLoading(true);
 
-        const res = await getAppointments(selectedDate);
-        const data = res.data;
+        // Dashboard prikazuje "aktivnu čekaonicu": termine na čekanju i one
+        // koji su trenutno u toku pregleda. Backend po defaultu vraća samo
+        // Waiting, pa InProgress dohvatamo posebnim pozivom.
+        const [waitingRes, inProgressRes] = await Promise.all([
+          getAppointments(selectedDate, { status: "Waiting" }),
+          getAppointments(selectedDate, { status: "InProgress" }),
+        ]);
+
+        const data = [...waitingRes.data, ...inProgressRes.data];
 
         if (!isMounted) return;
 
@@ -43,7 +66,10 @@ export default function Dashboard() {
             : `Pacijent ${a.id}`,
           date: new Date(a.date),
           status: a.status ?? "Waiting",
+          doctorId: a.doctorId ?? null,
         }));
+
+        normalized.sort((a, b) => a.date - b.date);
 
         setAppointments(normalized);
       } catch (err) {
@@ -76,16 +102,31 @@ export default function Dashboard() {
 
   const freeSlots = Math.max(0, 16 - activeAppointments);
 
-  const acceptPatient = async (id) => {
+  const startPatient = async (id) => {
     try {
-      await acceptAppointment(id);
+      const res = await startAppointment(id);
 
-      // ukloni termin iz liste nakon prijema pacijenta
-      setAppointments((prev) => prev.filter((a) => a.id !== id));
+      // termin ostaje u listi, samo prelazi u InProgress i vezuje se za ovog doktora
+      setAppointments((prev) =>
+        prev.map((a) =>
+          a.id === id
+            ? { ...a, status: "InProgress", doctorId: res.data.doctorId }
+            : a,
+        ),
+      );
+
+      // odmah otvori formu za pregled
+      setExpandedId(id);
     } catch (err) {
       console.error(err);
       setError("Greška pri prihvatanju termina.");
     }
+  };
+
+  // Poziva se iz ExamForm-a kad doktor uspješno završi pregled
+  const handleExamCompleted = (id) => {
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
+    setExpandedId((current) => (current === id ? null : current));
   };
 
   const removeAppointment = async (id) => {
@@ -378,39 +419,63 @@ export default function Dashboard() {
           <div style={styles.centerState}>Nema termina.</div>
         ) : isMobile ? (
           <div style={{ padding: 16 }}>
-            {appointments.map((a) => (
-              <div key={a.id} style={styles.mobileCard}>
-                <strong>{a.patient}</strong>
+            {appointments.map((a) => {
+              const isOwnInProgress =
+                a.status === "InProgress" && a.doctorId === user?.id;
 
-                <div style={{ marginTop: 6 }}>{a.title}</div>
+              return (
+                <div key={a.id} style={styles.mobileCard}>
+                  <strong>{a.patient}</strong>
 
-                <div style={{ marginTop: 6, color: "#64748b" }}>
-                  {a.date.toLocaleString("bs-BA")}
-                </div>
+                  <div style={{ marginTop: 6 }}>{a.title}</div>
 
-                <div style={{ marginTop: 10 }}>
-                  <span style={styles.badge}>Na čekanju</span>
-                </div>
-
-                {isDoctor && (
-                  <div style={{ marginTop: 10 }}>
-                    <button
-                      style={{ ...styles.btn, ...styles.acceptBtn }}
-                      onClick={() => acceptPatient(a.id)}
-                    >
-                      Primi
-                    </button>
-
-                    <button
-                      style={{ ...styles.btn, ...styles.deleteBtn }}
-                      onClick={() => removeAppointment(a.id)}
-                    >
-                      Ukloni
-                    </button>
+                  <div style={{ marginTop: 6, color: "#64748b" }}>
+                    {a.date.toLocaleString("bs-BA")}
                   </div>
-                )}
-              </div>
-            ))}
+
+                  <div style={{ marginTop: 10 }}>
+                    <span style={{ ...styles.badge, ...STATUS_BADGE_STYLES[a.status] }}>
+                      {STATUS_LABELS[a.status] ?? a.status}
+                    </span>
+                  </div>
+
+                  {isDoctor && a.status === "Waiting" && (
+                    <div style={{ marginTop: 10 }}>
+                      <button
+                        style={{ ...styles.btn, ...styles.acceptBtn }}
+                        onClick={() => startPatient(a.id)}
+                      >
+                        Primi
+                      </button>
+
+                      <button
+                        style={{ ...styles.btn, ...styles.deleteBtn }}
+                        onClick={() => removeAppointment(a.id)}
+                      >
+                        Ukloni
+                      </button>
+                    </div>
+                  )}
+
+                  {isOwnInProgress && (
+                    <div style={{ marginTop: 10 }}>
+                      <button
+                        style={{ ...styles.btn, ...styles.acceptBtn }}
+                        onClick={() =>
+                          setExpandedId((cur) => (cur === a.id ? null : a.id))
+                        }
+                      >
+                        {expandedId === a.id ? "Sakrij formu" : "Otvori pregled"}
+                      </button>
+                    </div>
+                  )}
+
+                  {isOwnInProgress && expandedId === a.id && (
+                    <ExamForm appointment={a} onCompleted={handleExamCompleted} />
+                  )}
+                </div>
+              );
+            })}
           </div>
         ) : (
           <table style={styles.table}>
@@ -426,40 +491,74 @@ export default function Dashboard() {
             </thead>
 
             <tbody>
-              {appointments.map((a, i) => (
-                <tr
-                  key={a.id}
-                  style={{
-                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
-                  }}
-                >
-                  <td style={styles.td}>#{a.id}</td>
-                  <td style={styles.td}>{a.patient}</td>
-                  <td style={styles.td}>{a.title}</td>
-                  <td style={styles.td}>{formatDate(a.date)}</td>
-                  <td style={styles.td}>
-                    <span style={styles.badge}>Na čekanju</span>
-                  </td>
+              {appointments.map((a, i) => {
+                const isOwnInProgress =
+                  a.status === "InProgress" && a.doctorId === user?.id;
 
-                  {isDoctor && (
-                    <td style={styles.td}>
-                      <button
-                        style={{ ...styles.btn, ...styles.acceptBtn }}
-                        onClick={() => acceptPatient(a.id)}
-                      >
-                        Primi
-                      </button>
+                return (
+                  <Fragment key={a.id}>
+                    <tr
+                      style={{
+                        background: i % 2 === 0 ? "#fff" : "#f8fafc",
+                      }}
+                    >
+                      <td style={styles.td}>#{a.id}</td>
+                      <td style={styles.td}>{a.patient}</td>
+                      <td style={styles.td}>{a.title}</td>
+                      <td style={styles.td}>{formatDate(a.date)}</td>
+                      <td style={styles.td}>
+                        <span style={{ ...styles.badge, ...STATUS_BADGE_STYLES[a.status] }}>
+                          {STATUS_LABELS[a.status] ?? a.status}
+                        </span>
+                      </td>
 
-                      <button
-                        style={{ ...styles.btn, ...styles.deleteBtn }}
-                        onClick={() => removeAppointment(a.id)}
-                      >
-                        Ukloni
-                      </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
+                      {isDoctor && (
+                        <td style={styles.td}>
+                          {a.status === "Waiting" && (
+                            <>
+                              <button
+                                style={{ ...styles.btn, ...styles.acceptBtn }}
+                                onClick={() => startPatient(a.id)}
+                              >
+                                Primi
+                              </button>
+
+                              <button
+                                style={{ ...styles.btn, ...styles.deleteBtn }}
+                                onClick={() => removeAppointment(a.id)}
+                              >
+                                Ukloni
+                              </button>
+                            </>
+                          )}
+
+                          {isOwnInProgress && (
+                            <button
+                              style={{ ...styles.btn, ...styles.acceptBtn }}
+                              onClick={() =>
+                                setExpandedId((cur) => (cur === a.id ? null : a.id))
+                              }
+                            >
+                              {expandedId === a.id ? "Sakrij formu" : "Otvori pregled"}
+                            </button>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+
+                    {isOwnInProgress && expandedId === a.id && (
+                      <tr key={`${a.id}-form`}>
+                        <td
+                          colSpan={isDoctor ? 6 : 5}
+                          style={{ ...styles.td, background: "#f8fafc" }}
+                        >
+                          <ExamForm appointment={a} onCompleted={handleExamCompleted} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}

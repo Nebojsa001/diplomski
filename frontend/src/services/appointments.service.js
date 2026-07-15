@@ -42,6 +42,13 @@ export function cancelAppointment(id) {
   return api.patch(`/appointments/${id}/cancel`);
 }
 
-export function acceptAppointment(id) {
-  return api.patch(`/appointments/${id}/accept`);
+// Primi pacijenta (Waiting -> InProgress)
+export function startAppointment(id) {
+  return api.patch(`/appointments/${id}/start`);
+}
+
+// Završi pregled (InProgress -> Completed) + upis dijagnoza/napomene/kontrole
+// payload: { diagnosisIds: number[], note?: string, nextAppointmentDate?: string }
+export function completeAppointment(id, payload) {
+  return api.patch(`/appointments/${id}/complete`, payload);
 }

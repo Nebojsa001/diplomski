@@ -11,6 +11,7 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { getAppointmentsInRange } from "@/services/appointments.service";
 import { getUsers, getDoctors } from "@/services/users.service";
+import ReportDetailModal from "@/components/patient/ReportDetailModal";
 
 // import jsPDF from "jspdf";
 // import "jspdf-autotable";
@@ -60,6 +61,8 @@ export default function DoctorReports() {
   const [patientAppointments, setPatientAppointments] = useState([]);
   const [patientAppointmentsLoading, setPatientAppointmentsLoading] =
     useState(false);
+  const [selectedReportAppointment, setSelectedReportAppointment] =
+    useState(null);
 
   useEffect(() => {
     getDoctors()
@@ -160,6 +163,19 @@ export default function DoctorReports() {
           title: a.title ?? "Pregled",
           status: a.status ?? "Completed",
           date: new Date(a.date),
+          patientName: `${patient.firstName} ${patient.lastName}`,
+          doctorName: a.doctor
+            ? `${a.doctor.firstName} ${a.doctor.lastName}`
+            : null,
+          report: a.report
+            ? {
+                note: a.report.note,
+                diagnoses: (a.report.diagnoses ?? []).map((rd) => ({
+                  code: rd.diagnosis.code,
+                  name: rd.diagnosis.name,
+                })),
+              }
+            : null,
         })),
       );
     } catch {
@@ -577,12 +593,23 @@ export default function DoctorReports() {
                 </thead>
                 <tbody>
                   {patientAppointments.map((a) => (
-                    <tr key={a.id}>
+                    <tr
+                      key={a.id}
+                      style={
+                        a.status === "Completed"
+                          ? { cursor: "pointer" }
+                          : undefined
+                      }
+                      onClick={() =>
+                        a.status === "Completed" &&
+                        setSelectedReportAppointment(a)
+                      }
+                    >
                       <td style={styles.td}>{formatDate(a.date)}</td>
                       <td style={styles.td}>{formatTime(a.date)}</td>
                       <td style={styles.td}>{a.title}</td>
                       {doctorsCount > 1 && (
-                        <td style={styles.td}>{doctorLabel}</td>
+                        <td style={styles.td}>{a.doctorName || doctorLabel}</td>
                       )}
                       <td style={styles.td}>
                         <span style={styles.badge}>{a.status}</span>
@@ -594,6 +621,14 @@ export default function DoctorReports() {
             )}
           </div>
         </div>
+      )}
+
+      {selectedReportAppointment && (
+        <ReportDetailModal
+          appointment={selectedReportAppointment}
+          onClose={() => setSelectedReportAppointment(null)}
+          showDownload
+        />
       )}
     </div>
   );

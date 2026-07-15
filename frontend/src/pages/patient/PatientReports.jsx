@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMyAppointmentsInRange } from "@/services/appointments.service";
 import { getDoctors } from "@/services/users.service";
+import ReportDetailModal from "@/components/patient/ReportDetailModal";
 
 function formatDate(date) {
   if (!(date instanceof Date) || isNaN(date)) return "";
@@ -34,6 +35,7 @@ export default function PatientReports() {
   const [sortOrder, setSortOrder] = useState("desc"); // desc = najnoviji prvo
 
   const [doctorLabel, setDoctorLabel] = useState("Doktor");
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
 
   useEffect(() => {
     getDoctors()
@@ -65,6 +67,18 @@ export default function PatientReports() {
           title: a.title ?? "Pregled",
           status: a.status ?? "Completed",
           date: new Date(a.date),
+          doctorName: a.doctor
+            ? `${a.doctor.firstName} ${a.doctor.lastName}`
+            : null,
+          report: a.report
+            ? {
+                note: a.report.note,
+                diagnoses: (a.report.diagnoses ?? []).map((rd) => ({
+                  code: rd.diagnosis.code,
+                  name: rd.diagnosis.name,
+                })),
+              }
+            : null,
         })),
       );
     } catch (err) {
@@ -263,14 +277,25 @@ export default function PatientReports() {
         ) : isMobile ? (
           <div>
             {sortedAppointments.map((a) => (
-              <div key={a.id} style={styles.mobileCard}>
+              <div
+                key={a.id}
+                style={{ ...styles.mobileCard, cursor: "pointer" }}
+                onClick={() => setSelectedAppointment(a)}
+              >
                 <strong>{a.title}</strong>
                 <div style={{ marginTop: 6, color: "#64748b" }}>
                   {formatDate(a.date)} u {formatTime(a.date)}
                 </div>
                 <div style={{ marginTop: 6, color: "#64748b" }}>
-                  Doktor: {doctorLabel}
+                  Doktor: {a.doctorName || doctorLabel}
                 </div>
+
+                {a.report?.diagnoses?.length > 0 && (
+                  <div style={{ marginTop: 8, color: "#1d4ed8", fontWeight: 600 }}>
+                    {a.report.diagnoses.map((d) => d.code).join(", ")}
+                  </div>
+                )}
+
                 <div style={{ marginTop: 8 }}>
                   <span style={{ ...styles.badge, ...getStatusStyle() }}>
                     {a.status}
@@ -287,6 +312,7 @@ export default function PatientReports() {
                 <th style={styles.th}>Vrijeme</th>
                 <th style={styles.th}>Vrsta pregleda</th>
                 <th style={styles.th}>Doktor</th>
+                <th style={styles.th}>Dijagnoze</th>
                 <th style={styles.th}>Status</th>
               </tr>
             </thead>
@@ -294,12 +320,21 @@ export default function PatientReports() {
               {sortedAppointments.map((a, i) => (
                 <tr
                   key={a.id}
-                  style={{ background: i % 2 === 0 ? "#fff" : "#f8fafc" }}
+                  style={{
+                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setSelectedAppointment(a)}
                 >
                   <td style={styles.td}>{formatDate(a.date)}</td>
                   <td style={styles.td}>{formatTime(a.date)}</td>
                   <td style={styles.td}>{a.title}</td>
-                  <td style={styles.td}>{doctorLabel}</td>
+                  <td style={styles.td}>{a.doctorName || doctorLabel}</td>
+                  <td style={styles.td}>
+                    {a.report?.diagnoses?.length > 0
+                      ? a.report.diagnoses.map((d) => d.code).join(", ")
+                      : "—"}
+                  </td>
                   <td style={styles.td}>
                     <span style={{ ...styles.badge, ...getStatusStyle() }}>
                       {a.status}
@@ -311,6 +346,13 @@ export default function PatientReports() {
           </table>
         )}
       </div>
+
+      {selectedAppointment && (
+        <ReportDetailModal
+          appointment={selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
+        />
+      )}
     </div>
   );
 }
