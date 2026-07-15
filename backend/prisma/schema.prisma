@@ -17,6 +17,7 @@ enum Role {
 
 enum AppointmentStatus {
   Waiting
+  InProgress
   Completed
   Cancelled
 }
@@ -30,7 +31,12 @@ model User {
   role      Role     @default(patient)
   createdAt DateTime @default(now())
 
-  appointments Appointment[]
+  // termini na kojima je korisnik pacijent
+  appointments       Appointment[]   @relation("PatientAppointments")
+  // termini koje je korisnik (doktor) primio/pregledao
+  doctorAppointments Appointment[]   @relation("DoctorAppointments")
+  // ljekarski izvještaji koje je doktor napisao
+  medicalReports     MedicalReport[]
 }
 
 model Appointment {
@@ -39,8 +45,57 @@ model Appointment {
   status    AppointmentStatus @default(Waiting)
 
   userId    Int
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User              @relation("PatientAppointments", fields: [userId], references: [id], onDelete: Cascade)
+
+  // doktor koji je primio pacijenta (postavlja se pri "start" pregleda)
+  doctorId  Int?
+  doctor    User?             @relation("DoctorAppointments", fields: [doctorId], references: [id])
 
   date      DateTime
+  createdAt DateTime          @default(now())
+
+  // ljekarski izvještaj nastao nakon završenog pregleda (1:1)
+  report    MedicalReport?
+
+  // kontrolni pregled zakazan nakon ovog (samo-referenca)
+  nextAppointmentId Int?         @unique
+  nextAppointment   Appointment? @relation("AppointmentFollowUp", fields: [nextAppointmentId], references: [id])
+  previousAppointment Appointment? @relation("AppointmentFollowUp")
+}
+
+// MKB-10 šifarnik bolesti
+model Diagnosis {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique // npr. "I10"
+  name      String   // npr. "Esencijalna hipertenzija"
   createdAt DateTime @default(now())
+
+  reports MedicalReportDiagnosis[]
+}
+
+// Ljekarski izvještaj - nastaje kad doktor završi pregled
+model MedicalReport {
+  id            Int         @id @default(autoincrement())
+
+  appointmentId Int         @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  doctorId      Int
+  doctor        User        @relation(fields: [doctorId], references: [id])
+
+  note          String? // terapija / napomena ljekara
+  createdAt     DateTime    @default(now())
+
+  diagnoses MedicalReportDiagnosis[]
+}
+
+// M:N veza izvještaj <-> dijagnoze (jedan pregled može imati vise dijagnoza)
+model MedicalReportDiagnosis {
+  reportId    Int
+  diagnosisId Int
+
+  report    MedicalReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  diagnosis Diagnosis     @relation(fields: [diagnosisId], references: [id])
+
+  @@id([reportId, diagnosisId])
 }

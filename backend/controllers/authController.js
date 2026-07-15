@@ -17,9 +17,6 @@ function sanitizeUser(user) {
   return safeUser;
 }
 
-//
-// REGISTRACIJA (email + lozinka)
-//
 exports.register = catchAsync(async (req, res, next) => {
   const { firstName, lastName, email, password, passwordConfirm, role } =
     req.body;
@@ -109,11 +106,6 @@ exports.login = catchAsync(async (req, res, next) => {
   });
 });
 
-//
-// GOOGLE OAUTH LOGIN / REGISTRACIJA
-// Korisnik se uvijek pronalazi/kreira preko email adrese - "sub" se vise
-// ne koristi niti sprema u bazu (google oauth nije vise jedini)
-//
 exports.googleLogin = catchAsync(async (req, res, next) => {
   const idToken = req.body.credential;
 
@@ -151,9 +143,6 @@ exports.googleLogin = catchAsync(async (req, res, next) => {
   });
 });
 
-//
-// ZASTITA RUTA - ocekuje NAS app token (isti za email/password i Google login)
-//
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
   if (
