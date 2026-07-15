@@ -24,11 +24,18 @@ router
     appointmentController.deleteAppointment,
   );
 
-// primi pacijenta
+// primi pacijenta (Waiting -> InProgress)
 router.patch(
-  "/:id/accept",
+  "/:id/start",
   authController.restrictTo("doctor"),
-  appointmentController.acceptAppointment,
+  appointmentController.startAppointment,
+);
+
+// završi pregled (InProgress -> Completed, upis dijagnoza/napomene, opciono kontrolni termin)
+router.patch(
+  "/:id/complete",
+  authController.restrictTo("doctor"),
+  appointmentController.completeAppointment,
 );
 
 // otkaži
